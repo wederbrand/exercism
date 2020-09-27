@@ -20,51 +20,26 @@ type Node struct {
 
 // Build builds the tree.
 func Build(records []Record) (*Node, error) {
-	if len(records) == 0 {
-		return nil, nil
-	}
-
 	// Sort it to make sure we get lower IDs first
 	sort.Slice(records, func(i, j int) bool {
 		return records[i].ID < records[j].ID
 	})
 
-	allNodes := make(map[int]*Node)
-	rootNode := &Node{}
-	
-	for _, record := range records {
-		_, found := allNodes[record.ID]
-		if found {
-			return nil, errors.New("duplicate node")
+	tree := make(map[int]*Node)
+
+	for i, r := range records {
+		if r.ID != i || (r.ID == 0 && r.Parent != 0) || (r.ID != 0 && r.Parent >= r.ID) {
+			return nil, errors.New("not consecutive or messed up parent")
 		}
 
-		thisNode := &Node{ID: record.ID}
-		allNodes[record.ID] = thisNode
+		node := &Node{ID: r.ID}
+		tree[r.ID] = node
 
-		if record.ID == 0 {
-			if record.Parent != 0 {
-				return nil, errors.New("root node can't have a parent")
-			}
-			rootNode = thisNode
-			continue
+		if r.ID != 0 {
+			parent := tree[r.Parent]
+			parent.Children = append(parent.Children, node)
 		}
-
-		_, found = allNodes[record.ID-1]
-		if !found {
-			return nil, errors.New("non-continuous")
-		}
-
-		if record.Parent >= record.ID {
-			return nil, errors.New("parent can't be equal or bigger than ID")
-		}
-
-		parent, found := allNodes[record.Parent]
-		if !found {
-			return nil, errors.New("parent not found")
-		}
-
-		parent.Children = append(parent.Children, thisNode)
 	}
 
-	return rootNode, nil
+	return tree[0], nil
 }
